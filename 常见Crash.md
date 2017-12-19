@@ -12,3 +12,4 @@ unreconized selctor sent to instance
 
 数组越界 等
 
+indexOfObject 返回NSNotFound 是个很大的数字 如果再用index替换的话会报bug
