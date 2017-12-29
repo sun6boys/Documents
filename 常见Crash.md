@@ -4,7 +4,7 @@ Crash 分析
 
 KVO
 
-野指针
+野指针(哪些情况造成野指针)
 
 unreconized selctor sent to instance
 
