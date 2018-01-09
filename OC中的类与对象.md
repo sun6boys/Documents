@@ -1,0 +1,1 @@
+clang -rewrite-objc hello.m
