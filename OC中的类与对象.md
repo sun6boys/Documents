@@ -3,6 +3,8 @@ clang -rewrite-objc hello.m
 https://www.zhihu.com/question/20275578/answer/162398710
 
 
+https://www.zhihu.com/question/19588698
+
 从编程发展史来看，早期软件比较简单，我们只需要面向过程编程：
 
 - 定义函数
