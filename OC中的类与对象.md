@@ -1,7 +1,3 @@
-clang -rewrite-objc hello.m
-
-https://www.zhihu.com/question/20275578/answer/162398710
-
 
 从编程发展史来看，早期软件比较简单，我们只需要面向过程编程：
 
@@ -55,5 +51,77 @@ https://www.zhihu.com/question/20275578/answer/162398710
 
 所以当我们用array[x] 取对象时会从array基地址 + x * 8字节 ~ array基地址 + （x + 1） * 8的内存中取出内容即为该对象的地址。
 
+#####  OC对象的物理形态
+
+假如现在定义一个Person类如下
+
+```
+@interface Person : NSObject
+{
+    NSString *_name;
+    NSUInteger _age;
+    NSString *_sex；
+}
+@property (nonatomic,copy) NSString *name;
+@property (nonatomic, assign) NSUInteger age;
+@property (nonatomic, copy) NSString *sex;
+@end
+
+```
+那由Person类构建出来的person实例在内存当中的结构如下图，第一个isa是Person基类NSObject的成员变量。
+
 ![icon](https://github.com/sun6boys/Documents/blob/master/Resources/instance.png?raw=true)
 
+也就是说，一个实例对象的内存大小，由自己本身的成员变量数量和父类成员变量数量，父类的父类一直到基类NSObject的成员变量数量总和决定的，一个成员变量分配8个字节（64位操作系统） 即使如NSUInteger这样的基本数据类型，也是分配的8个字节。我们可以通过`class_getInstanceSize`获取类的实例对象的内存大小
+
+如果把person当成一个数组person.name 等同于person[1]，
+
+> Objective-c是一个动态语言，可以在运行时添加方法或者交换方法等，但我们都知道一旦类注册后，便不能添加成员变量（包括category中也不能添加成员变量），这是因为如果可以随意添加成员变量，那在添加前创建的实例的内存大小由原先的成员变量数量决定，如果用老实例对象获取新成员变量一定会造成类似数组越界的野指针问题。除非苹果设计成类似数组那样当数组中元素数量达到扩容因子数值，重新开辟一块更大的内存，把原先的内容复制过去，但这好像不太现实。。。
+
+Objcetive-c中的对象即使如NSProxy或者block，内存当中头8个字节一定存放的是名为isa指针。那isa是什么呢？我如何知道第9-16个字节存放的是哪个成员变量的地址呢？
+
+#####  isa
+
+isa可以理解成身份证明，每个实例对象的isa指针指向它所属的类（[person class]）,它是运行时环境加载完成便构建出来存放在内存data段。它是个结构体，也被称为类对象
+
+```
+struct objc_class {
+    Class _Nonnull isa  OBJC_ISA_AVAILABILITY;
+
+#if !__OBJC2__
+    Class _Nullable super_class                              OBJC2_UNAVAILABLE;
+    const char * _Nonnull name                               OBJC2_UNAVAILABLE;
+    long version                                             OBJC2_UNAVAILABLE;
+    long info                                                OBJC2_UNAVAILABLE;
+    long instance_size                                       OBJC2_UNAVAILABLE;
+    struct objc_ivar_list * _Nullable ivars                  OBJC2_UNAVAILABLE;
+    struct objc_method_list * _Nullable * _Nullable methodLists                    OBJC2_UNAVAILABLE;
+    struct objc_cache * _Nonnull cache                       OBJC2_UNAVAILABLE;
+    struct objc_protocol_list * _Nullable protocols          OBJC2_UNAVAILABLE;
+#endif
+
+} OBJC2_UNAVAILABLE;
+
+```
+
+ - **Class _Nonnull isa** 类对象头8个字节也是一个isa指针，所以它也是一个对象，它指向的是meta class（此处略过不表）
+ - **Class super_class** 父类对象的指针
+ - **const char name** 类名
+ - **long version** 类的版本信息
+ - **long instance_size** 实例对象所占内存大小
+ - **ivars** 成员变量集合
+ - **methodLists** 实例方法列表
+ - **cache** 最近调用的方法列表
+ - **protocols** 协议列表
+
+> Runtime的一些知识网上较多，此处略过不表，可以去查询比如oc中函数如何调用，交换方法，meta class等知识。
+
+类对象当中`objc_ivar_list`存放的成员变量的集合`objc_ivar`,上一小节中提到person.name是如何知道name的存放地址距person基地址偏移量呢 ，可以通过`ivar_getOffset`来获得具体的偏移量。
+
+### PS
+本文讲述了类的抽象描述以及OC对象的内存形态。如果您通过这篇文章知道下面`void *p`为什么会被当做Person的实例对象，那我的目的便达到了。
+
+```
+Class personClass = [Person class];
+void *p = &personClass;
+```
